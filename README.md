@@ -21,6 +21,10 @@
 
 ## Deployment
 
-1. `cdk synth`: synthesize the CDK app. Check **cdk.out* for output [CloudFormation](https://aws.amazon.com/cn/cloudformation/) template
+1. `cdk synth`: synthesize the CDK app. Check *cdk.out* for output [CloudFormation](https://aws.amazon.com/cn/cloudformation/) template
 2. `cdk bootstrap`: provision resources for the CDK app
 3. `cdk deploy --all`: deploy all stacks into AWS account
+
+## Reference
+
+https://cdkworkshop.com/
