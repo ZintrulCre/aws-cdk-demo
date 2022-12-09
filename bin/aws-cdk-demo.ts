@@ -1,6 +1,20 @@
 #!/usr/bin/env node
-import * as cdk from 'aws-cdk-lib';
-import { AwsCdkDemoStack } from '../lib/aws-cdk-demo-stack';
+import { App } from "aws-cdk-lib";
+import { SnsStack } from "../lib/sns-stack";
+import { SqsStack } from "../lib/sqs-stack";
+import { AppProps } from "../lib/props";
+import { Construct } from "constructs";
 
-const app = new cdk.App();
-new AwsCdkDemoStack(app, 'AwsCdkDemoStack');
+const app = new App();
+const appName = "AwsCdkDemo";
+const appProps: AppProps = {
+  appName: appName,
+  stage: "Beta",
+};
+
+const sqsStack = new SqsStack(app, `${appName}-SQS`, appProps);
+
+const snsStack = new SnsStack(app, `${appName}-SNS`, {
+  ...appProps,
+  sqs: sqsStack.queue,
+});
