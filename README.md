@@ -25,6 +25,15 @@
 2. `cdk bootstrap`: provision resources for the CDK app
 3. `cdk deploy --all`: deploy all stacks into AWS account
 
+## Checklist
+
+- ✅ SQS
+- ✅ SNS
+- ✅ AppConfig
+- ❌ CodeGuru
+- ❌ S3
+- ❌ DynamoDB
+
 ## Reference
 
 https://cdkworkshop.com/

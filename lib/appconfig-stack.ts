@@ -1,14 +1,14 @@
-import {Stack} from "aws-cdk-lib";
+import {RemovalPolicy, Stack} from "aws-cdk-lib";
 import {
     CfnApplication,
     CfnEnvironment,
     CfnDeploymentStrategy,
     CfnConfigurationProfile,
-    CfnHostedConfigurationVersion, 
+    CfnHostedConfigurationVersion,
     CfnDeployment
 } from "aws-cdk-lib/aws-appconfig";
 import {Construct} from "constructs";
-import {AppProps} from "./props";
+import {AppConfigProps, AppProps, AppConfigProfileProps} from "./props";
 
 export class AppConfigStack extends Stack {
     readonly application: CfnApplication;
@@ -17,7 +17,7 @@ export class AppConfigStack extends Stack {
     readonly profiles: Map<String, CfnConfigurationProfile>;
     readonly versions: Map<String, CfnHostedConfigurationVersion>
 
-    constructor(scope: Construct, id: string, readonly props: AppProps) {
+    constructor(scope: Construct, id: string, readonly props: AppConfigProps) {
         super(scope, id, props);
 
         this.application = this.createApplication(props);
@@ -25,6 +25,12 @@ export class AppConfigStack extends Stack {
         this.deploymentStrategy = this.createAllAtOnceDeploymentStrategy();
         this.profiles = new Map<String, CfnConfigurationProfile>();
         this.versions = new Map<String, CfnHostedConfigurationVersion>();
+        props.appConfigProfileProps.forEach(appConfigProfileProps => {
+            const profile = this.createConfigurationProfile(this.application, this.env, appConfigProfileProps);
+            const version = this.createHostedConfigurationVersion(this.application, profile, appConfigProfileProps);
+            this.profiles.set(profile.name, profile)
+            this.versions.set(profile.name, version)
+        });
         this.createDeployment();
 
     }
@@ -46,6 +52,41 @@ export class AppConfigStack extends Stack {
         });
     }
 
+    private createConfigurationProfile(
+        application: CfnApplication,
+        environment: CfnEnvironment,
+        appConfigProfileProps: AppConfigProfileProps
+    ): CfnConfigurationProfile {
+        const profileId =  `${appConfigProfileProps.key}-profile`;
+        const profile = new CfnConfigurationProfile(this, profileId, {
+            applicationId: application.ref,
+            name: appConfigProfileProps.key,
+            type: appConfigProfileProps.type,
+            locationUri: 'hosted',
+        });
+        profile.addDependsOn(environment);
+        return profile;
+    }
+
+    private createHostedConfigurationVersion(
+        application: CfnApplication,
+        profile: CfnConfigurationProfile,
+        appConfigProfileProps: AppConfigProfileProps
+    ): CfnHostedConfigurationVersion {
+        const versionId =  `${appConfigProfileProps.key}-version`;
+        const version = new CfnHostedConfigurationVersion(this, versionId,
+            {
+                applicationId: application.ref,
+                configurationProfileId: profile.ref,
+                description: `Hosted configuration for ${appConfigProfileProps.key}`,
+                content: appConfigProfileProps.value,
+                contentType: 'string',
+            });
+        version.addDependsOn(profile);
+        version.applyRemovalPolicy(RemovalPolicy.RETAIN);
+        return version;
+    }
+
     private createAllAtOnceDeploymentStrategy(): CfnDeploymentStrategy {
         return new CfnDeploymentStrategy(this, 'AllAtOnceDeploymentStrategy', {
             name: 'AllAtOnceDeploymentStrategy',
@@ -60,7 +101,8 @@ export class AppConfigStack extends Stack {
     private createDeployment() {
         const deployments: Map<String, CfnDeployment> = new Map<String, CfnDeployment>()
         this.profiles.forEach((profile, key) => {
-            deployments.set(key, new CfnDeployment(this, 'pipelineDeployment', {
+            const deploymentId = `${key}-deployment`
+            deployments.set(key, new CfnDeployment(this, deploymentId, {
                 applicationId: this.application.ref,
                 configurationProfileId: profile.ref,
                 configurationVersion: this.versions.get(key)?.ref ?? "Manually_typed_version",
